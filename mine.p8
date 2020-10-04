@@ -16,11 +16,13 @@ function _init()
     make_cursor(0,0)
     make_timer()
     make_hud(timer)
+    make_menu()
 end
 
 function _update()
     if game_state==0 then
         intro:update()
+        menu:update()
     elseif game_state==1 then
         cursor:action()
         timer:update()
@@ -35,6 +37,7 @@ end
 function _draw()
     if game_state==0 then
         intro:draw()
+        menu:draw()
     elseif game_state==1 then
         board:draw()
         cursor:draw()
@@ -57,7 +60,7 @@ function make_intro()
             print(".mine 2020", 40,12,7)
             local color=1
             if self.f<20 then color = 7 end
-            print("press any key to start", 20,60,color)
+            -- print("press any key to start", 20,60,color)
             spr(2,110,100)
             spr(2,100,110)
             spr(2,110,110)
@@ -66,12 +69,69 @@ function make_intro()
             if self.f == 40 then self.f=0 end
         end,
         update=function(self)
-            if any_key() then
+            -- if any_key() then
+            --     cls(13)
+            --     game_state=1
+            -- end
+        end
+    }
+end
+
+function make_menu()
+    menu={
+        bg_color=13,
+        font_color=6,
+        bg_color_selected=1,
+        font_color_selected=7,
+        selected=1,
+        vertical_margin=2,
+        horizontal_margin=3,
+        menu_items={
+            'start game',
+            'options',
+            'credits',
+        },
+        full_width=0,
+        full_height=0,
+        draw=function(self)
+            local start_x=(128-self.full_width)/2
+            local start_y=(128-self.full_height)/2
+            local line_height=5+self.vertical_margin*2
+            for i,menu_element in pairs(self.menu_items) do
+                local font_color=self.font_color
+                local bg_color=self.bg_color
+                if i==self.selected then
+                    font_color=self.font_color_selected
+                    bg_color=self.bg_color_selected
+                end
+                local text_width=(#menu_element*4-2)
+                rectfill(start_x,start_y+line_height*(i-1)+1,start_x+self.full_width,start_y+line_height*i,bg_color)
+                print(menu_element,(128-text_width)/2,(start_y+line_height*(i-1)+1)+self.vertical_margin,font_color)
+            end
+        end,
+        set_full_width=function(self)
+            local max_width=0
+            for menu_element in all(self.menu_items) do
+                if #menu_element>max_width then
+                    max_width=#menu_element
+                end
+            end
+            self.full_width=max_width*4+self.horizontal_margin*2-2
+        end,
+        set_full_height=function(self)
+            self.full_height=#self.menu_items*(5+self.vertical_margin*2)
+        end,
+        update=function(self)
+            if (btnp(2) and self.selected>1) self.selected-=1
+            if (btnp(3) and self.selected<#self.menu_items) self.selected+=1
+            if (btnp(4) or btnp(5)) and self.selected==1 then
                 cls(13)
                 game_state=1
             end
-        end
+        end,
     }
+    menu:set_full_width()
+    menu:set_full_height()
 end
 
 function make_cursor(x,y)
@@ -168,7 +228,7 @@ function make_board()
             -- create array of amount of tiles
             exclude=self:get_index(exclude_x,exclude_y)
             local a={}
-            for i=1,count(self.tiles) do
+            for i=1,#self.tiles do
                 if i != exclude then
                     add(a,i)
                 end
