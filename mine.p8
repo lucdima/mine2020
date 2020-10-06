@@ -4,12 +4,8 @@ __lua__
 
 function _init()
     make_game()
-    game.state=0
-    game.start=0
     make_intro()
     make_board()
-    offset_x = (128-board.size*9)/2
-    offset_y = offset_x + 7
     make_cursor(0,0)
     make_timer()
     make_hud(timer)
@@ -141,7 +137,7 @@ function make_cursor(x,y)
         x=x,
         y=y,
         draw=function(self)
-            spr(1,self.x * 9 + offset_x, self.y * 9 + offset_y)
+            spr(1,self.x * 9 + board.offset_x, self.y * 9 + board.offset_y)
             -- rectfill(0,0,50,10,1)
             -- print(self.x .. "," .. self.y,2,2,5)
         end,
@@ -212,6 +208,8 @@ function make_board()
         total_bombs=10,
         marked_bombs=0,
         uncovered_tiles=0,
+        offset_x=0,
+        offset_y=0,
         tiles={},
         add_tile=function(self,tile)
             add(self.tiles,tile)
@@ -338,6 +336,8 @@ function make_board()
             return self.uncovered_tiles + self.total_bombs == self.size * self.size
         end,
     }
+    board.offset_x=(128-board.size*9)/2
+    board.offset_y=board.offset_x+7
     for i = 0,board.size-1 do
         for j = 0,board.size-1 do
             board:add_tile(make_tile(j,i))
@@ -356,21 +356,21 @@ function make_tile(x,y)
         flag=false,
         draw = function(self)
             if self.closed then
-                spr(2,self.x * 9 + offset_x,self.y * 9 + offset_y)
+                spr(2,self.x * 9 + board.offset_x,self.y * 9 + board.offset_y)
                 if self.flag then
-                    spr(3,self.x * 9 + offset_x,self.y * 9 + offset_y)
+                    spr(3,self.x * 9 + board.offset_x,self.y * 9 + board.offset_y)
                 end
                 return
             end
             if self.bomb then
-                spr(5,self.x * 9 + offset_x,self.y * 9 + offset_y)
+                spr(5,self.x * 9 + board.offset_x,self.y * 9 + board.offset_y)
                 return
             end
-            spr(4,self.x * 9 + offset_x,self.y * 9 + offset_y)
+            spr(4,self.x * 9 + board.offset_x,self.y * 9 + board.offset_y)
             if self.bombs_near>0 then
                 -- Add diferent colors to numbers
                 local color = self:get_number_color(self.bombs_near)
-                print(self.bombs_near,self.x * 9 + offset_x + 3,self.y * 9 + offset_y + 2,color)
+                print(self.bombs_near,self.x * 9 + board.offset_x + 3,self.y * 9 + board.offset_y + 2,color)
             end
         end,
         get_number_color=function(self, number)
