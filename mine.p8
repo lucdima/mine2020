@@ -1,14 +1,11 @@
 pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
---- game_state=0 is intro
---- game_state=1 game
---- game_state=2 is gameover loose
---- game_state=3 is gameover win
 
 function _init()
-    game_state=0
-    start=0
+    make_game()
+    game.state=0
+    game.start=0
     make_intro()
     make_board()
     offset_x = (128-board.size*9)/2
@@ -20,53 +17,58 @@ function _init()
 end
 
 function _update()
-    if game_state==0 then
+    if game.state==0 then
         intro:update()
         menu:update()
-    elseif game_state==1 then
+    elseif game.state==1 then
         cursor:action()
         timer:update()
-    elseif game_state==2 or game_state==3 then
+    elseif game.state==2 or game.state==3 then
         if any_key() then
             _init()
-            game_state=0
         end
     end
 end
 
 function _draw()
-    if game_state==0 then
+    if game.state==0 then
         intro:draw()
         menu:draw()
-    elseif game_state==1 then
+    elseif game.state==1 then
         board:draw()
         cursor:draw()
         hud:draw()
-    elseif game_state==2 or game_state==3 then
+    elseif game.state==2 or game.state==3 then
         hud:draw()
         cursor:draw()
     end
 end
 
+function make_game()
+    --- game_state=0 is intro
+    --- game_state=1 game
+    --- game_state=2 is gameover loose
+    --- game_state=3 is gameover win
+    game={
+        state=0,
+        start=0,
+    }
+
+end
+
 function make_intro()
     cls(13)
     intro={
-        f=0,
         draw=function(self)
             spr(2,10,10)
             spr(2,20,10)
             spr(3,20,10)
             spr(5,30,10)
             print(".mine 2020", 40,12,7)
-            local color=1
-            if self.f<20 then color = 7 end
-            -- print("press any key to start", 20,60,color)
             spr(2,110,100)
             spr(2,100,110)
             spr(2,110,110)
             print("(c) 2020 lucas dima", 10,112,6)
-            self.f+=1
-            if self.f == 40 then self.f=0 end
         end,
         update=function(self)
             -- if any_key() then
@@ -79,7 +81,7 @@ end
 
 function make_menu()
     menu={
-        bg_color=13,
+        bg_color=12,
         font_color=6,
         bg_color_selected=1,
         font_color_selected=7,
@@ -126,7 +128,7 @@ function make_menu()
             if (btnp(3) and self.selected<#self.menu_items) self.selected+=1
             if (btnp(4) or btnp(5)) and self.selected==1 then
                 cls(13)
-                game_state=1
+                game.state=1
             end
         end,
     }
@@ -144,7 +146,10 @@ function make_cursor(x,y)
             -- print(self.x .. "," .. self.y,2,2,5)
         end,
         action=function(self)
-            if (btnp(0) and self.x>0) self.x-=1
+            if (btnp(0) and self.x>0) then
+                sfx(0)
+                self.x-=1
+            end
             if (btnp(1) and self.x<board.size-1) self.x+=1
             if (btnp(2) and self.y>0) self.y-=1
             if (btnp(3) and self.y<board.size-1) self.y+=1
@@ -156,8 +161,6 @@ function make_cursor(x,y)
             if (btnp(5)) then
                 self.handle_flag_button(self)
             end
-
-            -- print(total .. has_bomb_message,5,117,5)
         end,
         handle_flag_button=function(self)
             local tile = board:get_tile(self.x,self.y)
@@ -171,31 +174,32 @@ function make_cursor(x,y)
             end
         end,
         handle_open_button=function(self)
-            if start==0 then
+            if game.start==0 then
                 board:assign_bombs(self.x,self.y)
                 board:assign_nearby()
-                start=1
+                game.start=1
             end
             local tile = board:get_tile(self.x,self.y)
             if tile:get_flag() then return end
             tile.closed=false
             if board:has_bomb(self.x,self.y) then
                 board:uncover_all()
-                game_state=2
+                game.state=2
                 board:draw()
                 cursor:draw()
                 hud:draw()
-                wait(30)
+                wait(15)
                 return
             end
             uncover_recursive(tile,board)
             board:count_uncovered()
             if board:is_all_uncovered() then
-                game_state=3
+                board:uncover_win()
+                game.state=3
                 board:draw()
                 cursor:draw()
                 hud:draw()
-                wait(60)
+                wait(30)
                 return
             end
         end,
@@ -243,7 +247,7 @@ function make_board()
                 a[rand_pos2]=aux
             end
 
-            -- pick the first 30 (bomb amount elements)
+            -- pick the first (bomb amount elements)
             for i=1,self.total_bombs do
                 self:set_bomb(a[i])
             end
@@ -307,6 +311,13 @@ function make_board()
                 end
             end
         end,
+        uncover_win=function(self)
+            for tile in all(self.tiles) do
+                if tile:has_bomb() then
+                    tile:set_flag(true)
+                end
+            end
+        end,
         increment_marked_bombs=function(self)
             self.marked_bombs+=1
         end,
@@ -332,6 +343,7 @@ function make_board()
             board:add_tile(make_tile(j,i))
         end
     end
+    cls(13)
 end
 
 function make_tile(x,y)
@@ -433,8 +445,8 @@ function make_hud(timer)
             -- rectfill(0,12,128,22,1)
             -- print(board.uncovered_tiles,2,12,5)
             display=""
-            if game_state==2 then display="game over" end
-            if game_state==3 then display="you win!" end
+            if game.state==2 then display="game over" end
+            if game.state==3 then display="you win!" end
             -- if #self.display>0 then
             print(display,(64-#display*2),16,7)
             -- end
@@ -526,14 +538,14 @@ end
 
 function wait(a) for i = 1,a do flip() end end
 __gfx__
-00000000880000887777777700000000111111171111111700000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000880000887777777600000000111111161111111600000000000000000000000000000000000000000000000000000000000000000000000000000000
 000000008000000876666661000000001666666716666a6700000000000000000000000000000000000000000000000000000000000000000000000000000000
 00700700000000007666666100888100166666671666866700000000000000000000000000000000000000000000000000000000000000000000000000000000
 000770000000000076666661008a8100166666671661166700000000000000000000000000000000000000000000000000000000000000000000000000000000
 00077000000000007666666100888100166666671617116700000000000000000000000000000000000000000000000000000000000000000000000000000000
 00700700000000007666666100000100166666671611116700000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000800000087666666100000100166666671661166700000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000880000887111111100000000777777777777777700000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000880000886111111100000000677777776777777700000000000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
