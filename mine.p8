@@ -2,14 +2,15 @@ pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
 
-function _init()
+function _init(size,bombs,selected_size,selected_bombs)
     make_game()
     make_intro()
-    make_board()
+    make_board(size,bombs)
     make_cursor(0,0)
     make_timer()
     make_hud(timer)
     make_menu()
+    make_options_menu(selected_size,selected_bombs)
 end
 
 function _update()
@@ -21,8 +22,12 @@ function _update()
         timer:update()
     elseif game.state==2 or game.state==3 then
         if any_key() then
-            _init()
+            _init(board.size,board.total_bombs,options_menu.menu_items[1].selected,options_menu.menu_items[2].selected)
         end
+    elseif game.state==4 then
+        intro:update()
+        options_menu:update()
+    elseif game.state==5 then
     end
 end
 
@@ -37,6 +42,10 @@ function _draw()
     elseif game.state==2 or game.state==3 then
         hud:draw()
         cursor:draw()
+    elseif game.state==4 then
+        intro:draw()
+        options_menu:draw()
+    elseif game.state==5 then
     end
 end
 
@@ -45,6 +54,8 @@ function make_game()
     --- game_state=1 game
     --- game_state=2 is gameover loose
     --- game_state=3 is gameover win
+    --- game_state=4 is options
+    --- game_state=5 is credits
     game={
         state=0,
         start=0,
@@ -122,14 +133,129 @@ function make_menu()
         update=function(self)
             if (btnp(2) and self.selected>1) self.selected-=1
             if (btnp(3) and self.selected<#self.menu_items) self.selected+=1
-            if (btnp(4) or btnp(5)) and self.selected==1 then
+            if (btnp(4) or btnp(5)) then
                 cls(13)
-                game.state=1
+                if self.selected==1 then
+                    game.state=1
+                elseif self.selected==2 then
+                    game.state=4
+                end
             end
         end,
     }
     menu:set_full_width()
     menu:set_full_height()
+end
+
+function make_options_menu(selected_size,selected_bombs)
+    if selected_size==nil then selected_size=1 end
+    if selected_bombs==nil then selected_bombs=2 end
+    options_menu={
+        bg_color=12,
+        font_color=6,
+        bg_color_selected=1,
+        font_color_selected=7,
+        selected=1,
+        vertical_margin=2,
+        horizontal_margin=3,
+        menu_items={
+            {
+                name='board size:',
+                option_display={
+                    ' 5x5',
+                    ' 8x8',
+                    ' 10x10',
+                    ' 13x13',
+                },
+                option_values={
+                    5,8,10,13
+                },
+                max_bombs={
+                    20,60,90,120
+                },
+                selected=selected_size,
+                display=function(self,i)
+                    return self.name..self.option_display[i]
+                end,
+            },
+            {
+                name='bombs:',
+                option_display={' 5',' 10',' 20',' 30',' 50'},
+                option_values={5,10,20,30,50},
+                selected=selected_bombs,
+                display=function(self,i)
+                    return self.name..self.option_display[i]
+                end,
+            },
+            {
+                name='return',
+                option_display={''},
+                option_values={''},
+                selected=1,
+                display=function(self,i)
+                    return self.name..self.option_display[i]
+                end,
+            },
+        },
+        full_width=0,
+        full_height=0,
+        draw=function(self)
+            local start_x=(128-self.full_width)/2
+            local start_y=(128-self.full_height)/2
+            local line_height=5+self.vertical_margin*2
+            for i,menu_element in pairs(self.menu_items) do
+                local font_color=self.font_color
+                local bg_color=self.bg_color
+                if i==self.selected then
+                    font_color=self.font_color_selected
+                    bg_color=self.bg_color_selected
+                end
+                local text=menu_element:display(menu_element.selected)
+                local text_width=(#text*4-2)
+                rectfill(start_x,start_y+line_height*(i-1)+1,start_x+self.full_width,start_y+line_height*i,bg_color)
+                print(text,(128-text_width)/2,(start_y+line_height*(i-1)+1)+self.vertical_margin,font_color)
+            end
+        end,
+        set_full_width=function(self)
+            local max_width=0
+            for menu_element in all(self.menu_items) do
+                for i=1,#menu_element.option_display do
+                    -- get max width from all options
+                    local text=menu_element:display(i)
+                    if #text>max_width then
+                        max_width=#text
+                    end
+                end
+            end
+            self.full_width=max_width*4+self.horizontal_margin*2-2
+        end,
+        set_full_height=function(self)
+            self.full_height=#self.menu_items*(5+self.vertical_margin*2)
+        end,
+        update=function(self)
+            if btnp(0) then
+                local idx=self.menu_items[self.selected].selected-1
+                if idx==0 then idx=#self.menu_items[self.selected].option_display end
+                self.menu_items[self.selected].selected=idx
+            elseif btnp(1) then
+                local idx=self.menu_items[self.selected].selected+1
+                if idx>#self.menu_items[self.selected].option_display then idx=1 end
+                self.menu_items[self.selected].selected=idx
+            end
+            if (btnp(2) and self.selected>1) self.selected-=1
+            if (btnp(3) and self.selected<#self.menu_items) self.selected+=1
+            if (btnp(4) or btnp(5)) and self.selected==3 then
+                cls(13)
+                if self.menu_items[2].option_values[self.menu_items[2].selected] > self.menu_items[1].max_bombs[self.menu_items[1].selected] then
+                    self.menu_items[2].option_values[self.menu_items[2].selected] = self.menu_items[1].max_bombs[self.menu_items[1].selected]
+                end
+                make_board(self.menu_items[1].option_values[self.menu_items[1].selected],self.menu_items[2].option_values[self.menu_items[2].selected])
+                game.state=0
+            end
+        end,
+    }
+    options_menu:set_full_width()
+    options_menu:set_full_height()
 end
 
 function make_cursor(x,y)
@@ -202,10 +328,12 @@ function make_cursor(x,y)
     }
 end
 
-function make_board()
+function make_board(size,total_bombs)
+    if size==nil then size=10 end
+    if total_bombs==nil then total_bombs=10 end
     board={
-        size=10,
-        total_bombs=10,
+        size=size,
+        total_bombs=total_bombs,
         marked_bombs=0,
         uncovered_tiles=0,
         offset_x=0,
@@ -337,7 +465,7 @@ function make_board()
         end,
     }
     board.offset_x=(128-board.size*9)/2
-    board.offset_y=board.offset_x+7
+    board.offset_y=(118-board.size*9)/2+11
     for i = 0,board.size-1 do
         for j = 0,board.size-1 do
             board:add_tile(make_tile(j,i))
@@ -430,7 +558,7 @@ function make_timer()
         draw=function(self)
             local min=flr(self.seconds/60)
             local sec=self.seconds%60
-            rectfill(100,2,126,10,1)
+            rectfill(100,2,126,8,1)
             print(pad(""..min,2) .. ":" .. pad(""..sec,2),106,2,7)
         end
     }
@@ -440,17 +568,17 @@ function make_hud(timer)
     hud={
         timer=timer,
         draw=function(self)
-            rectfill(0,0,128,10,1)
+            rectfill(0,0,128,8,1)
             print(board.marked_bombs,2,2,7)
             -- rectfill(0,12,128,22,1)
             -- print(board.uncovered_tiles,2,12,5)
-            display=""
+            display="mine 2020"
             if game.state==2 then display="game over" end
             if game.state==3 then display="you win!" end
             -- if #self.display>0 then
-            print(display,(64-#display*2),16,7)
+            print(display,(64-#display*2),2,7)
             -- end
-            print("mine 2020",(64-9*2),2,7)
+            -- print("mine 2020",(64-9*2),2,7)
             timer:draw()
         end,
     }
