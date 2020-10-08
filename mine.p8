@@ -148,7 +148,7 @@ function make_menu()
 end
 
 function make_board_size_menu_item(selected)
-    if selected==nil then selected=1 end
+    if selected==nil then selected=3 end
     local name='board size:'
     local option_display={' 5x5',' 8x8',' 10x10',' 13x13'}
     local option_values={5,8,10,13}
@@ -161,8 +161,8 @@ end
 function make_bombs_menu_item(selected)
     if selected==nil then selected=2 end
     local name='bombs:'
-    local option_display={' 5',' 10',' 20',' 30',' 50'}
-    local option_values={5,10,20,30,50}
+    local option_display={' 5',' 10',' 20'}
+    local option_values={5,10,20}
     local properties={}
 
      return make_option_menu_items(name,option_display,option_values,selected,properties)
