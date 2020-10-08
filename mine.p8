@@ -88,7 +88,7 @@ end
 
 function make_menu()
     menu={
-        bg_color=12,
+        bg_color=13,
         font_color=6,
         bg_color_selected=1,
         font_color_selected=7,
@@ -147,55 +147,73 @@ function make_menu()
     menu:set_full_height()
 end
 
+function make_board_size_menu_item(selected)
+    if selected==nil then selected=1 end
+    local name='board size:'
+    local option_display={' 5x5',' 8x8',' 10x10',' 13x13'}
+    local option_values={5,8,10,13}
+    local properties={max_bombs={20,60,90,120}}
+    local board_size_menu_item=make_option_menu_items(name,option_display,option_values,selected,properties)
+
+    return board_size_menu_item
+end
+
+function make_bombs_menu_item(selected)
+    if selected==nil then selected=2 end
+    local name='bombs:'
+    local option_display={' 5',' 10',' 20',' 30',' 50'}
+    local option_values={5,10,20,30,50}
+    local properties={}
+
+     return make_option_menu_items(name,option_display,option_values,selected,properties)
+end
+
+function make_return_menu_item()
+    local name='return'
+    local option_display={''}
+    local option_values={''}
+    local selected=1
+    local properties={}
+
+    return make_option_menu_items(name,option_display,option_values,selected,properties)
+end
+
+function make_option_menu_items(name, option_display,option_values,selected,properties)
+    item={
+        name=name,
+        option_display=option_display,
+        option_values=option_values,
+        selected=selected,
+        display=function(self,i)
+            return self.name..self.option_display[i]
+        end,
+    }
+    for key,value in pairs(properties) do
+        item[key] = value
+    end
+
+    return item
+end
+
 function make_options_menu(selected_size,selected_bombs)
     if selected_size==nil then selected_size=1 end
     if selected_bombs==nil then selected_bombs=2 end
+    local board_size_menu_item=make_board_size_menu_item(selected_size)
+    local bombs_menu_item=make_bombs_menu_item(selected_bombs)
+    local return_menu_item=make_return_menu_item()
+
     options_menu={
-        bg_color=12,
+        bg_color=13,
         font_color=6,
         bg_color_selected=1,
         font_color_selected=7,
         selected=1,
-        vertical_margin=2,
-        horizontal_margin=3,
+        vertical_margin=2, -- this is in pixels
+        horizontal_margin=3, -- this is in pixels
         menu_items={
-            {
-                name='board size:',
-                option_display={
-                    ' 5x5',
-                    ' 8x8',
-                    ' 10x10',
-                    ' 13x13',
-                },
-                option_values={
-                    5,8,10,13
-                },
-                max_bombs={
-                    20,60,90,120
-                },
-                selected=selected_size,
-                display=function(self,i)
-                    return self.name..self.option_display[i]
-                end,
-            },
-            {
-                name='bombs:',
-                option_display={' 5',' 10',' 20',' 30',' 50'},
-                option_values={5,10,20,30,50},
-                selected=selected_bombs,
-                display=function(self,i)
-                    return self.name..self.option_display[i]
-                end,
-            },
-            {
-                name='return',
-                option_display={''},
-                option_values={''},
-                selected=1,
-                display=function(self,i)
-                    return self.name..self.option_display[i]
-                end,
-            },
+            board_size_menu_item,
+            bombs_menu_item,
+            return_menu_item,
         },
         full_width=0,
         full_height=0,
