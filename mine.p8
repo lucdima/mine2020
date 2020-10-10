@@ -2,14 +2,16 @@ pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
 
-function _init(size,bombs,selected_size_and_bombs)
+function _init(size,bombs,selected_size_and_bombs,sound_enable)
     make_game()
+    make_sound_manager(sound_enable)
     make_intro()
     make_board(size,bombs)
+    make_cursor(flr(board.size/2),flr(board.size/2))
     make_timer()
     make_hud(timer)
     make_menu()
-    make_options_menu(selected_size_and_bombs,game.sound)
+    make_options_menu(selected_size_and_bombs,sound_manager.sound_enable)
 end
 
 function _update()
@@ -21,11 +23,11 @@ function _update()
         timer:update()
     elseif game.state==2 then
         if any_key() then
-            _init(board.size,board.total_bombs,options_menu.menu_items[1].selected)
+            _init(board.size,board.total_bombs,options_menu.menu_items[1].selected,sound_manager.sound_enable)
         end
     elseif game.state==3 then
         if any_key() then
-            _init(board.size,board.total_bombs,options_menu.menu_items[1].selected)
+            _init(board.size,board.total_bombs,options_menu.menu_items[1].selected,sound_manager.sound_enable)
         end
     elseif game.state==4 then
         intro:update()
@@ -140,6 +142,7 @@ function make_menu()
                 cls(13)
                 if self.selected==1 then
                     game.state=1
+                    sound_manager:play_start()
                 elseif self.selected==2 then
                     game.state=4
                 end
@@ -295,7 +298,7 @@ function make_options_menu(selected_size_and_bombs,sound)
             if (btnp(3) and self.selected<#self.menu_items) self.selected+=1
             if (btnp(4) or btnp(5)) and self.selected == self.exit_option then
                 cls(13)
-                game.sound=self.menu_items[2].option_values[self.menu_items[2].selected]
+                sound_manager.sound_enable=self.menu_items[2].option_values[self.menu_items[2].selected]
                 make_board(self.menu_items[1].option_values[self.menu_items[1].selected].size,self.menu_items[1].option_values[self.menu_items[1].selected].bombs)
                 make_cursor(flr(board.size/2),flr(board.size/2))
 
@@ -317,13 +320,26 @@ function make_cursor(x,y)
             -- print(self.x .. "," .. self.y,2,2,5)
         end,
         action=function(self)
-            if (btnp(0) and self.x>0) then
-                if game.sound then sfx(0) end
+            -- Left
+            if btnp(0) and self.x>0 then
+                sound_manager:play_move_left()
                 self.x-=1
             end
-            if (btnp(1) and self.x<board.size-1) self.x+=1
-            if (btnp(2) and self.y>0) self.y-=1
-            if (btnp(3) and self.y<board.size-1) self.y+=1
+            -- Right
+            if btnp(1) and self.x<board.size-1 then
+                sound_manager:play_move_right()
+                self.x+=1
+            end
+            -- Up
+            if btnp(2) and self.y>0 then
+                sound_manager:play_move_up()
+                self.y-=1
+            end
+            -- Down
+            if btnp(3) and self.y<board.size-1 then
+                sound_manager:play_move_down()
+                self.y+=1
+            end
             local has_bomb=board:has_bomb(self.x,self.y)
             local total=board:cound_surrounding(self.x, self.y)
             if (btnp(4)) then
@@ -338,14 +354,17 @@ function make_cursor(x,y)
             if not tile:is_closed() then return end
             if tile:get_flag() then
                 board:decrement_marked_bombs()
+                sound_manager:play_flag_off()
                 tile:set_flag(false)
             else
                 board:increment_marked_bombs()
+                sound_manager:play_flag_on()
                 tile:set_flag(true)
             end
         end,
         handle_open_button=function(self)
             if game.start==0 then
+                sound_manager:play_uncover()
                 board:assign_bombs(self.x,self.y)
                 board:assign_nearby()
                 game.start=1
@@ -354,6 +373,7 @@ function make_cursor(x,y)
             if tile:get_flag() then return end
             tile.closed=false
             if board:has_bomb(self.x,self.y) then
+                sound_manager:play_loose()
                 board:uncover_all()
                 game.state=2
                 board:draw()
@@ -364,8 +384,10 @@ function make_cursor(x,y)
                 return
             end
             uncover_recursive(tile,board)
+            sound_manager:play_uncover()
             board:count_uncovered()
             if board:is_all_uncovered() then
+                sound_manager:play_win()
                 board:uncover_win()
                 game.state=3
                 board:draw()
@@ -634,6 +656,62 @@ function make_hud(timer)
     }
 end
 
+function make_sound_manager(enable)
+    if enable==nil then enable=true end
+    -- Down 0
+    -- Left 0
+    -- Up 1
+    -- Right 1
+    -- Win 2
+    -- Loose 3
+    -- Flag on and menu option 4
+    -- Flag off
+    -- Start 6
+    sound_manager={
+        sound_enable=enable,
+        play_move_up=function(self)
+            if not self.sound_enable then return end
+            sfx(1)
+        end,
+        play_move_right=function(self)
+            if not self.sound_enable then return end
+            sfx(1)
+        end,
+        play_move_down=function(self)
+            if not self.sound_enable then return end
+            sfx(0)
+        end,
+        play_move_left=function(self)
+            if not self.sound_enable then return end
+            sfx(0)
+        end,
+        play_flag_on=function(self)
+            if not self.sound_enable then return end
+            sfx(4)
+        end,
+        play_flag_off=function(self)
+            if not self.sound_enable then return end
+            sfx(5)
+        end,
+        play_start=function(self)
+            if not self.sound_enable then return end
+            sfx(6,1)
+        end,
+        play_win=function(self)
+            if not self.sound_enable then return end
+            sfx(2,1)
+        end,
+        play_loose=function(self)
+            if not self.sound_enable then return end
+            sfx(3,1)
+        end,
+        play_uncover=function(self)
+            if not self.sound_enable then return end
+            sfx(7)
+        end,
+    }
+end
+
 function debug(m)
     rectfill(4,110,110,128,0)
     print(m,5,117,5)
@@ -856,5 +934,11 @@ dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 
 __sfx__
-000500002905026050210500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00050000290501a050210500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 010500001f05023050270500000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000002975026750267502b7503075028750287502a7502a7502c75000700317500070000700007000070000700007000070000700007000070000700007000070000700007000070000700007000070000700
+000c000030650326503365035650336502e6502a6502b650306502e6502b650216401e6401a6401663012620106100e6100d60009600086000060000600006000060000600006000060000600006000060000600
+001000000e55019550005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500
+00100000185500f550000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+001000001c5501c5501c5501d55000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500005000050000500
+010100002405023050230502305024050270503105000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
