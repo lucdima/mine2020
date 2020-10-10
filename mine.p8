@@ -6,6 +6,7 @@ function _init(size,bombs,selected_size_and_bombs,sound_enable)
     make_game()
     make_sound_manager(sound_enable)
     make_intro()
+    make_credits()
     make_board(size,bombs)
     make_cursor(flr(board.size/2-1),flr(board.size/2))
     make_cursor_2(flr(board.size/2),flr(board.size/2))
@@ -35,36 +36,38 @@ function _update()
         intro:update()
         options_menu:update()
     elseif game.state==5 then
+        credits:update()
     end
 end
 
 function _draw()
-    if game.state==0 then
+    if game.state==0 then -- intro
         intro:draw()
         menu:draw()
-    elseif game.state==1 then
+    elseif game.state==1 then -- game
         board:draw()
         cursor:draw()
         if game.players==2 then cursor_2:draw() end
         hud:draw()
-    elseif game.state==2 or game.state==3 then
+    elseif game.state==2 or game.state==3 then -- game over
         hud:draw()
         cursor:draw()
         if game.players==2 then cursor_2:draw() end
-    elseif game.state==4 then
+    elseif game.state==4 then -- options
         intro:draw()
         options_menu:draw()
-    elseif game.state==5 then
+    elseif game.state==5 then -- credits
+        credits:draw()
     end
 end
 
 function make_game()
-    --- game_state=0 is intro
-    --- game_state=1 game
-    --- game_state=2 is gameover loose
-    --- game_state=3 is gameover win
-    --- game_state=4 is options
-    --- game_state=5 is credits
+    --- game.state=0 is intro
+    --- game.state=1 game
+    --- game.state=2 is gameover loose
+    --- game.state=3 is gameover win
+    --- game.state=4 is options
+    --- game.state=5 is credits
     game={
         state=0,
         start=0,
@@ -87,11 +90,22 @@ function make_intro()
             print("(c) 2020 lucas dima", 10,112,6)
         end,
         update=function(self)
-            -- if any_key() then
-            --     cls(13)
-            --     game_state=1
-            -- end
         end
+    }
+end
+
+function make_credits()
+    cls(13)
+    credits={
+        draw=function(self)
+            print("mine 2020 was created as a\nfirst experiment in pico-8\ndevelopment.\n\nit is really delightful to code\nin this awesome platform.\n\nthis game is dedicated to my\nfriend lautaro, who is the\nbest mine sweeper player\ni've ever known!\n\nthanks to press over and it's\ncrew for showing\nme the existence of pico-8\nhttps://pressover.news/\n\n(c) 2020 lucas dima.\nberlin, germany\nthis is free software (gpl.v3)\n", 1, 1)
+        end,
+        update=function(self)
+            if any_key() then
+                cls(13)
+                game.state=0
+            end
+        end,
     }
 end
 
@@ -154,7 +168,9 @@ function make_menu()
                     game.players=2
                     sound_manager:play_start()
                 elseif self.selected==3 then
-                    game.state=4
+                    game.state=4 -- options
+                elseif self.selected==4 then
+                    game.state=5 -- credits
                 end
             end
         end,
@@ -742,15 +758,10 @@ function make_hud(timer)
         draw=function(self)
             rectfill(0,0,128,8,1)
             print(board.marked_bombs,2,2,7)
-            -- rectfill(0,12,128,22,1)
-            -- print(board.uncovered_tiles,2,12,5)
             display="mine 2020"
             if game.state==2 then display="game over" end
             if game.state==3 then display="you win!" end
-            -- if #self.display>0 then
             print(display,(64-#display*2),2,7)
-            -- end
-            -- print("mine 2020",(64-9*2),2,7)
             timer:draw()
         end,
     }
@@ -758,15 +769,6 @@ end
 
 function make_sound_manager(enable)
     if enable==nil then enable=true end
-    -- Down 0
-    -- Left 0
-    -- Up 1
-    -- Right 1
-    -- Win 2
-    -- Loose 3
-    -- Flag on and menu option 4
-    -- Flag off
-    -- Start 6
     sound_manager={
         sound_enable=enable,
         play_move_up=function(self)
