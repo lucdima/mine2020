@@ -7,7 +7,8 @@ function _init(size,bombs,selected_size_and_bombs,sound_enable)
     make_sound_manager(sound_enable)
     make_intro()
     make_board(size,bombs)
-    make_cursor(flr(board.size/2),flr(board.size/2))
+    make_cursor(flr(board.size/2-1),flr(board.size/2))
+    make_cursor_2(flr(board.size/2),flr(board.size/2))
     make_timer()
     make_hud(timer)
     make_menu()
@@ -20,6 +21,7 @@ function _update()
         menu:update()
     elseif game.state==1 then
         cursor:action()
+        if game.players==2 then cursor_2:action() end
         timer:update()
     elseif game.state==2 then
         if any_key() then
@@ -43,10 +45,12 @@ function _draw()
     elseif game.state==1 then
         board:draw()
         cursor:draw()
+        if game.players==2 then cursor_2:draw() end
         hud:draw()
     elseif game.state==2 or game.state==3 then
         hud:draw()
         cursor:draw()
+        if game.players==2 then cursor_2:draw() end
     elseif game.state==4 then
         intro:draw()
         options_menu:draw()
@@ -64,7 +68,7 @@ function make_game()
     game={
         state=0,
         start=0,
-        sound=true,
+        players=1
     }
 end
 
@@ -101,7 +105,8 @@ function make_menu()
         vertical_margin=2,
         horizontal_margin=3,
         menu_items={
-            'start game',
+            '1 player game',
+            '2 players game',
             'options',
             'credits',
         },
@@ -140,10 +145,15 @@ function make_menu()
             if (btnp(3) and self.selected<#self.menu_items) self.selected+=1
             if (btnp(4) or btnp(5)) then
                 cls(13)
-                if self.selected==1 then
+                if self.selected==1then
                     game.state=1
+                    game.players=1
                     sound_manager:play_start()
                 elseif self.selected==2 then
+                    game.state=1
+                    game.players=2
+                    sound_manager:play_start()
+                elseif self.selected==3 then
                     game.state=4
                 end
             end
@@ -311,7 +321,7 @@ function make_options_menu(selected_size_and_bombs,sound)
 end
 
 function make_cursor(x,y)
-    cursor = {
+    cursor={
         x=x,
         y=y,
         draw=function(self)
@@ -346,6 +356,96 @@ function make_cursor(x,y)
                 self.handle_open_button(self)
             end
             if (btnp(5)) then
+                self.handle_flag_button(self)
+            end
+        end,
+        handle_flag_button=function(self)
+            local tile = board:get_tile(self.x,self.y)
+            if not tile:is_closed() then return end
+            if tile:get_flag() then
+                board:decrement_marked_bombs()
+                sound_manager:play_flag_off()
+                tile:set_flag(false)
+            else
+                board:increment_marked_bombs()
+                sound_manager:play_flag_on()
+                tile:set_flag(true)
+            end
+        end,
+        handle_open_button=function(self)
+            if game.start==0 then
+                sound_manager:play_uncover()
+                board:assign_bombs(self.x,self.y)
+                board:assign_nearby()
+                game.start=1
+            end
+            local tile = board:get_tile(self.x,self.y)
+            if tile:get_flag() then return end
+            tile.closed=false
+            if board:has_bomb(self.x,self.y) then
+                sound_manager:play_loose()
+                board:uncover_all()
+                game.state=2
+                board:draw()
+                spr(6,cursor.x * 9 + board.offset_x, cursor.y * 9 + board.offset_y)
+                cursor:draw()
+                hud:draw()
+                wait(5)
+                return
+            end
+            uncover_recursive(tile,board)
+            sound_manager:play_uncover()
+            board:count_uncovered()
+            if board:is_all_uncovered() then
+                sound_manager:play_win()
+                board:uncover_win()
+                game.state=3
+                board:draw()
+                cursor:draw()
+                hud:draw()
+                wait(30)
+                return
+            end
+        end,
+    }
+end
+
+function make_cursor_2(x,y)
+    cursor_2 = {
+        x=x,
+        y=y,
+        draw=function(self)
+            local spr_number=7
+            if self.x==cursor.x and self.y==cursor.y then spr_number=8 end
+            spr(spr_number,self.x * 9 + board.offset_x, self.y * 9 + board.offset_y)
+        end,
+        action=function(self)
+            -- Left
+            if btnp(0,1) and self.x>0 then
+                sound_manager:play_move_left()
+                self.x-=1
+            end
+            -- Right
+            if btnp(1,1) and self.x<board.size-1 then
+                sound_manager:play_move_right()
+                self.x+=1
+            end
+            -- Up
+            if btnp(2,1) and self.y>0 then
+                sound_manager:play_move_up()
+                self.y-=1
+            end
+            -- Down
+            if btnp(3,1) and self.y<board.size-1 then
+                sound_manager:play_move_down()
+                self.y+=1
+            end
+            local has_bomb=board:has_bomb(self.x,self.y)
+            local total=board:cound_surrounding(self.x, self.y)
+            if (btnp(4,1)) then
+                self.handle_open_button(self)
+            end
+            if (btnp(5,1)) then
                 self.handle_flag_button(self)
             end
         end,
@@ -718,7 +818,7 @@ function debug(m)
 end
 
 function any_key()
-    return btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5)
+    return btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5) or btnp(0,1) or btnp(1,1) or btnp(2,1) or btnp(3,1) or btnp(4,1) or btnp(5,1)
 end
 
 function uncover_recursive(tile,board)
@@ -795,14 +895,14 @@ end
 
 function wait(a) for i = 1,a do flip() end end
 __gfx__
-00000000880000887777777600000000111111161111111611111116000000000000000000000000000000000000000000000000000000000000000000000000
-000000008000000876666661000000001666666716666a671a8889a7000000000000000000000000000000000000000000000000000000000000000000000000
+00000000880000887777777600000000111111161111111611111116cc0000cc880000cc00000000000000000000000000000000000000000000000000000000
+000000008000000876666661000000001666666716666a671a8889a7c000000c8000000c00000000000000000000000000000000000000000000000000000000
 00700700000000007666666100888100166666671666866718a89a87000000000000000000000000000000000000000000000000000000000000000000000000
 000770000000000076666661008a8100166666671661166718911987000000000000000000000000000000000000000000000000000000000000000000000000
 00077000000000007666666100888100166666671617116719171187000000000000000000000000000000000000000000000000000000000000000000000000
 00700700000000007666666100000100166666671611116718111987000000000000000000000000000000000000000000000000000000000000000000000000
-0000000080000008766666610000010016666667166116671a9199a7000000000000000000000000000000000000000000000000000000000000000000000000
-00000000880000886111111100000000677777776777777767777777000000000000000000000000000000000000000000000000000000000000000000000000
+0000000080000008766666610000010016666667166116671a9199a7c000000cc000000800000000000000000000000000000000000000000000000000000000
+00000000880000886111111100000000677777776777777767777777cc0000cccc00008800000000000000000000000000000000000000000000000000000000
 __label__
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
