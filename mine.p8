@@ -6,11 +6,10 @@ function _init(size,bombs,selected_size_and_bombs)
     make_game()
     make_intro()
     make_board(size,bombs)
-    make_cursor(board.size/2-1,board.size/2-1)
     make_timer()
     make_hud(timer)
     make_menu()
-    make_options_menu(selected_size_and_bombs)
+    make_options_menu(selected_size_and_bombs,game.sound)
 end
 
 function _update()
@@ -20,7 +19,11 @@ function _update()
     elseif game.state==1 then
         cursor:action()
         timer:update()
-    elseif game.state==2 or game.state==3 then
+    elseif game.state==2 then
+        if any_key() then
+            _init(board.size,board.total_bombs,options_menu.menu_items[1].selected)
+        end
+    elseif game.state==3 then
         if any_key() then
             _init(board.size,board.total_bombs,options_menu.menu_items[1].selected)
         end
@@ -59,8 +62,8 @@ function make_game()
     game={
         state=0,
         start=0,
+        sound=true,
     }
-
 end
 
 function make_intro()
@@ -148,7 +151,7 @@ function make_menu()
 end
 
 function make_board_size_and_bombs_menu_item(selected)
-    if selected==nil then selected=3 end
+    if selected==nil then selected=7 end
     local name=''
     local option_display={
         ' 5x5 - 5 bombs ',
@@ -184,6 +187,17 @@ function make_board_size_and_bombs_menu_item(selected)
     return board_size_menu_item
 end
 
+function make_sound_menu_item(selected)
+    if selected==nil then selected=1 end
+    local name='sound'
+    local option_display={' on', ' off'}
+    local option_values={true,false}
+    local selected=selected
+    local properties={}
+
+    return make_option_menu_items(name,option_display,option_values,selected,properties)
+end
+
 function make_return_menu_item()
     local name='return'
     local option_display={''}
@@ -211,9 +225,11 @@ function make_option_menu_items(name, option_display,option_values,selected,prop
     return item
 end
 
-function make_options_menu(selected_size_and_bombs)
-    if selected_size_and_bombs==nil then selected_size_and_bombs=2 end
+function make_options_menu(selected_size_and_bombs,sound)
     local board_size_menu_item=make_board_size_and_bombs_menu_item(selected_size_and_bombs)
+    local selected_sound=1
+    if sound==false then selected_sound=2 end
+    local sound_menu_item=make_sound_menu_item(selected_sound)
     local return_menu_item=make_return_menu_item()
 
     options_menu={
@@ -222,11 +238,12 @@ function make_options_menu(selected_size_and_bombs)
         bg_color_selected=1,
         font_color_selected=7,
         selected=1,
-        exit_option=2,
+        exit_option=3,
         vertical_margin=2, -- this is in pixels
         horizontal_margin=3, -- this is in pixels
         menu_items={
             board_size_menu_item,
+            sound_menu_item,
             return_menu_item,
         },
         full_width=0,
@@ -278,7 +295,10 @@ function make_options_menu(selected_size_and_bombs)
             if (btnp(3) and self.selected<#self.menu_items) self.selected+=1
             if (btnp(4) or btnp(5)) and self.selected == self.exit_option then
                 cls(13)
+                game.sound=self.menu_items[2].option_values[self.menu_items[2].selected]
                 make_board(self.menu_items[1].option_values[self.menu_items[1].selected].size,self.menu_items[1].option_values[self.menu_items[1].selected].bombs)
+                make_cursor(flr(board.size/2),flr(board.size/2))
+
                 game.state=0
             end
         end,
@@ -298,7 +318,7 @@ function make_cursor(x,y)
         end,
         action=function(self)
             if (btnp(0) and self.x>0) then
-                sfx(0)
+                if game.sound then sfx(0) end
                 self.x-=1
             end
             if (btnp(1) and self.x<board.size-1) self.x+=1
@@ -337,9 +357,10 @@ function make_cursor(x,y)
                 board:uncover_all()
                 game.state=2
                 board:draw()
+                spr(6,cursor.x * 9 + board.offset_x, cursor.y * 9 + board.offset_y)
                 cursor:draw()
                 hud:draw()
-                wait(15)
+                wait(5)
                 return
             end
             uncover_recursive(tile,board)
@@ -614,6 +635,7 @@ function make_hud(timer)
 end
 
 function debug(m)
+    rectfill(4,110,110,128,0)
     print(m,5,117,5)
 end
 
@@ -695,14 +717,14 @@ end
 
 function wait(a) for i = 1,a do flip() end end
 __gfx__
-00000000880000887777777600000000111111161111111600000000000000000000000000000000000000000000000000000000000000000000000000000000
-000000008000000876666661000000001666666716666a6700000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000007666666100888100166666671666866700000000000000000000000000000000000000000000000000000000000000000000000000000000
-000770000000000076666661008a8100166666671661166700000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000000000007666666100888100166666671617116700000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700000000007666666100000100166666671611116700000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000800000087666666100000100166666671661166700000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000880000886111111100000000677777776777777700000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000880000887777777600000000111111161111111611111116000000000000000000000000000000000000000000000000000000000000000000000000
+000000008000000876666661000000001666666716666a671a8889a7000000000000000000000000000000000000000000000000000000000000000000000000
+00700700000000007666666100888100166666671666866718a89a87000000000000000000000000000000000000000000000000000000000000000000000000
+000770000000000076666661008a8100166666671661166718911987000000000000000000000000000000000000000000000000000000000000000000000000
+00077000000000007666666100888100166666671617116719171187000000000000000000000000000000000000000000000000000000000000000000000000
+00700700000000007666666100000100166666671611116718111987000000000000000000000000000000000000000000000000000000000000000000000000
+0000000080000008766666610000010016666667166116671a9199a7000000000000000000000000000000000000000000000000000000000000000000000000
+00000000880000886111111100000000677777776777777767777777000000000000000000000000000000000000000000000000000000000000000000000000
 __label__
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
