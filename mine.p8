@@ -2,15 +2,15 @@ pico-8 cartridge // http://www.pico-8.com
 version 29
 __lua__
 
-function _init(size,bombs,selected_size,selected_bombs)
+function _init(size,bombs,selected_size_and_bombs)
     make_game()
     make_intro()
     make_board(size,bombs)
-    make_cursor(0,0)
+    make_cursor(board.size/2-1,board.size/2-1)
     make_timer()
     make_hud(timer)
     make_menu()
-    make_options_menu(selected_size,selected_bombs)
+    make_options_menu(selected_size_and_bombs)
 end
 
 function _update()
@@ -22,7 +22,7 @@ function _update()
         timer:update()
     elseif game.state==2 or game.state==3 then
         if any_key() then
-            _init(board.size,board.total_bombs,options_menu.menu_items[1].selected,options_menu.menu_items[2].selected)
+            _init(board.size,board.total_bombs,options_menu.menu_items[1].selected)
         end
     elseif game.state==4 then
         intro:update()
@@ -147,25 +147,41 @@ function make_menu()
     menu:set_full_height()
 end
 
-function make_board_size_menu_item(selected)
+function make_board_size_and_bombs_menu_item(selected)
     if selected==nil then selected=3 end
-    local name='board size:'
-    local option_display={' 5x5',' 8x8',' 10x10',' 13x13'}
-    local option_values={5,8,10,13}
-    local properties={max_bombs={20,60,90,120}}
+    local name=''
+    local option_display={
+        ' 5x5 - 5 bombs ',
+        ' 5x5 - 10 bombs ',
+        ' 5x5 - 20 bombs ',
+        ' 8x8 - 10 bombs',
+        ' 8x8 - 20 bombs',
+        ' 8x8 - 30 bombs',
+        ' 10x10 - 10 bombs',
+        ' 10x10 - 30 bombs',
+        ' 10x10 - 50 bombs',
+        ' 13x13 - 12 bombs',
+        ' 13x13 - 30 bombs',
+        ' 13x13 - 50 bombs',
+    }
+    local option_values={
+        {size=5,bombs=5,},
+        {size=5,bombs=10,},
+        {size=5,bombs=20,},
+        {size=8,bombs=10,},
+        {size=8,bombs=20,},
+        {size=8,bombs=30,},
+        {size=10,bombs=10,},
+        {size=10,bombs=20,},
+        {size=10,bombs=50,},
+        {size=13,bombs=12,},
+        {size=13,bombs=30,},
+        {size=13,bombs=50,},
+    }
+    local properties={}
     local board_size_menu_item=make_option_menu_items(name,option_display,option_values,selected,properties)
 
     return board_size_menu_item
-end
-
-function make_bombs_menu_item(selected)
-    if selected==nil then selected=2 end
-    local name='bombs:'
-    local option_display={' 5',' 10',' 20'}
-    local option_values={5,10,20}
-    local properties={}
-
-     return make_option_menu_items(name,option_display,option_values,selected,properties)
 end
 
 function make_return_menu_item()
@@ -195,11 +211,9 @@ function make_option_menu_items(name, option_display,option_values,selected,prop
     return item
 end
 
-function make_options_menu(selected_size,selected_bombs)
-    if selected_size==nil then selected_size=1 end
-    if selected_bombs==nil then selected_bombs=2 end
-    local board_size_menu_item=make_board_size_menu_item(selected_size)
-    local bombs_menu_item=make_bombs_menu_item(selected_bombs)
+function make_options_menu(selected_size_and_bombs)
+    if selected_size_and_bombs==nil then selected_size_and_bombs=2 end
+    local board_size_menu_item=make_board_size_and_bombs_menu_item(selected_size_and_bombs)
     local return_menu_item=make_return_menu_item()
 
     options_menu={
@@ -208,11 +222,11 @@ function make_options_menu(selected_size,selected_bombs)
         bg_color_selected=1,
         font_color_selected=7,
         selected=1,
+        exit_option=2,
         vertical_margin=2, -- this is in pixels
         horizontal_margin=3, -- this is in pixels
         menu_items={
             board_size_menu_item,
-            bombs_menu_item,
             return_menu_item,
         },
         full_width=0,
@@ -262,12 +276,9 @@ function make_options_menu(selected_size,selected_bombs)
             end
             if (btnp(2) and self.selected>1) self.selected-=1
             if (btnp(3) and self.selected<#self.menu_items) self.selected+=1
-            if (btnp(4) or btnp(5)) and self.selected==3 then
+            if (btnp(4) or btnp(5)) and self.selected == self.exit_option then
                 cls(13)
-                if self.menu_items[2].option_values[self.menu_items[2].selected] > self.menu_items[1].max_bombs[self.menu_items[1].selected] then
-                    self.menu_items[2].option_values[self.menu_items[2].selected] = self.menu_items[1].max_bombs[self.menu_items[1].selected]
-                end
-                make_board(self.menu_items[1].option_values[self.menu_items[1].selected],self.menu_items[2].option_values[self.menu_items[2].selected])
+                make_board(self.menu_items[1].option_values[self.menu_items[1].selected].size,self.menu_items[1].option_values[self.menu_items[1].selected].bombs)
                 game.state=0
             end
         end,
