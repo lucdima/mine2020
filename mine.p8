@@ -826,7 +826,7 @@ function debug(m)
 end
 
 function any_key()
-    return btnp(0) or btnp(1) or btnp(2) or btnp(3) or btnp(4) or btnp(5) or btnp(0,1) or btnp(1,1) or btnp(2,1) or btnp(3,1) or btnp(4,1) or btnp(5,1)
+    return btnp(4)
 end
 
 function uncover_recursive(tile,board)
