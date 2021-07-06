@@ -622,12 +622,18 @@ function make_board(size,total_bombs)
             for tile in all(self.tiles) do
                 if tile:has_bomb() then
                     tile:set_closed(false)
+                    if tile.flag then
+                        self:decrement_marked_bombs()
+                    end
                 end
             end
         end,
         uncover_win=function(self)
             for tile in all(self.tiles) do
                 if tile:has_bomb() then
+                    if tile.flag==false then
+                        self:increment_marked_bombs()
+                    end
                     tile:set_flag(true)
                 end
             end
@@ -825,6 +831,10 @@ end
 
 function uncover_recursive(tile,board)
     tile.closed=false
+    if tile.flag then
+        board:decrement_marked_bombs()
+    end
+
     if tile:get_bombs_near() > 0 then
         return
     end
